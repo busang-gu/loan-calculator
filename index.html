@@ -27,6 +27,14 @@
 <!-- 파비콘 (인라인 SVG, 별도 파일 불필요) -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%239ECC3C'/%3E%3Ctext x='50' y='72' font-size='60' text-anchor='middle'%3E%F0%9F%8F%A0%3C/text%3E%3C/svg%3E">
 
+<!-- PWA (홈 화면에 추가하면 앱처럼 실행) -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="대출계산기">
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
   :root{
@@ -156,22 +164,24 @@ const LINKS = {
    전 단위: 만원
 ===================================================================== */
 const RULES = {
-  basisDate: "2026.07.03",
+  basisDate: "2026.08.09",
   didimdol: { // 내집마련 디딤돌 (주택도시기금)
-    incomeCap: { base: 6000, firstTime: 7000, newlywed: 8500 },     // 부부합산 연소득 (myhome.go.kr 확인 '26.7.3)
+    incomeCap: { base: 6000, firstTime: 7000, kids2plus: 7000, newlywed: 8500 }, // 부부합산 연소득 (nhuf·myhome 교차확인 '26.8.9)
     assetCap: 51100,                                                 // 순자산 2026년도 기준 (매년 갱신)
     priceCap: { base: 50000, newlywedOr2Kids: 60000 },               // 주택가격 (일반 5억 / 신혼·2자녀 6억)
-    loanCap:  { base: 20000, firstTime: 24000, newlywed: 32000 },    // '25.6.27 대책 이후 계약 기준 (이전 계약: 2.5/3/4억)
+    loanCap:  { base: 20000, firstTime: 24000, newlywedOr2Kids: 32000 }, // '25.6.27 대책 이후 계약 기준 (이전 계약: 2.5/3/4억)
     ltv: { base: 70, firstTime: 80, firstTimeCapitalOrReg: 70 },     // 수도권·규제는 생애최초라도 70
     dti: 60,
+    refRate: 3.5,                                                    // 참고금리 — 공식 금리표 연 2.85~4.15% ('26.8.9)
   },
   newborn: { // 신생아 특례 디딤돌
-    incomeCap: 13000, incomeCapDual: 20000,                          // 맞벌이 2억(각 1.3억 이하) — '25~'27 출산 맞벌이 2.5억 완화는 '26.7 현재 공식 미반영
-    assetCap: 51100,                                                 // 2026년도 기준 (myhome.go.kr 확인, '26.7.3)
+    incomeCap: 13000, incomeCapDual: 20000,                          // 맞벌이 2억(각 1.3억 이하) — '25~'27 출산 맞벌이 2.5억 완화는 '26.8 현재 공식 미반영
+    assetCap: 51100,                                                 // 2026년도 기준 (myhome.go.kr 확인, '26.8.9)
     priceCap: 90000,
     loanCap: 40000,                                                  // ⚠ '25.7.4 축소(5억→4억)
     ltv: { base: 70, firstTime: 80, firstTimeCapitalOrReg: 70 },
     dti: 60,
+    refRate: 2.7,                                                    // 참고금리 — 특례금리 연 1.8~4.5% ('26.8.9 확인)
   },
   bogeumjari: { // 보금자리론 (한국주택금융공사)
     incomeCap: { base: 7000, newlywed: 8500, kids1: 9000, kids2: 10000, kids3: 10000 }, // HF: 1자녀 9천, 다자녀(2자녀↑) 1억 통합
@@ -179,6 +189,7 @@ const RULES = {
     loanCap: { base: 36000, multiKids: 40000, firstTime: 42000 },    // 다자녀(2자녀 이상) 4억
     ltv: { apt: 70, aptReg: 60, firstTime: 80, firstTimeCapitalOrReg: 70 }, // ⚠ '25.10.15 규제지역 아파트 60
     dti: { base: 60, reg: 50 },
+    refRate: 5.0,                                                    // 참고금리 — '26.8월 아낌e 기준 연 4.90~5.20%(우대 시 최저 3.90%), HF 8월 동결
     note: "기타주택(비아파트)은 LTV 5%p 낮음. 이 계산기는 아파트 기준.",
   },
   bank: { // 시중은행 주택담보대출
@@ -192,6 +203,10 @@ const RULES = {
     // 수도권·규제: 스트레스금리 3.0% 100% 적용 ('25.10.16~). 지방: 3단계 유예로 1.5%×적용률 50%=실질 0.75%p ('26.12.31까지 연장)
     stress: { capitalOrReg: 3.0, other: 0.75 },                     // ⚠ 지방 유예 '26.12.31 이후 재연장 여부 재확인
     maxYearsCapitalOrReg: 30,                                        // 수도권·규제 만기 30년 제한
+    // 방공제(소액임차보증금 차감) — '26.6~7월 은행권 MCI·MCG 전면 중단으로 실제 차감 중 (KB·하나·SC 등)
+    // MCI·MCG가 재개되면 차감 없음. 지역별 최우선변제 소액임차보증금 기준.
+    roomDeduction: { regSeoul: 5500, regGg: 4800, capital: 4800, other: 2800 },
+    mciSuspended: true,                                              // ⚠ 은행권 모기지보험 재개 시 false로 (차감 해제)
   },
 };
 
@@ -205,7 +220,7 @@ const state = {
   newbornIn2y: null,    // true/false
   kids: 0,
   dualIncome: null,     // true/false (신생아특례 맞벌이 판단)
-  region: null,         // reg | capital | other
+  region: null,         // regSeoul | regGg | capital | other
   isApt: null,
   over85: null,         // 전용 85㎡ 초과 여부
   price: null,          // 만원
@@ -264,7 +279,8 @@ const steps = [
     render(el) {
       el.innerHTML = `
         ${q("집이 있는 지역은?", "region", [
-          ["reg", "규제지역", "서울 25개구 전역 + 경기 15곳(과천·광명·성남·수원·안양동안·용인수지/기흥·의왕·하남·화성동탄·구리 등, '26.7.1 기준) — 국토부 공고로 확인"],
+          ["regSeoul", "규제지역 — 서울", "서울 25개 자치구 전역"],
+          ["regGg", "규제지역 — 경기 15곳", "과천·광명·성남(분당수정중원)·수원(영통장안팔달)·안양동안·용인(수지기흥)·의왕·하남·화성동탄·구리 ('26.7.1 기준)"],
           ["capital", "수도권 (규제지역 외 경기·인천)", ""],
           ["other", "비수도권", ""],
         ], "규제지역 여부가 애매하면 국토교통부 '규제지역 현황'을 먼저 확인하세요.")}
@@ -390,7 +406,8 @@ function maxPrincipal(M, r, n) {
 
 function evalProducts() {
   const s = state, R = RULES;
-  const isCapOrReg = s.region === "reg" || s.region === "capital";
+  const isReg = s.region === "regSeoul" || s.region === "regGg";
+  const isCapOrReg = isReg || s.region === "capital";
   const results = [];
 
   // 공통: 이자율 낮추려 보수적으로 기존대출 원리금 전액을 DTI·DSR에 반영
@@ -411,7 +428,7 @@ function evalProducts() {
     if (s.over85) why.push("전용 85㎡ 초과");
     const ltv = s.firstTime ? (isCapOrReg ? r.ltv.firstTimeCapitalOrReg : r.ltv.firstTime) : r.ltv.base;
     const years = Math.min(s.years, 30);
-    const kRate = 2.7; // 참고금리(구간별 상이) — 실제는 소득·만기별 고정금리
+    const kRate = r.refRate; // 참고금리(구간별 상이) — 실제는 소득·만기별 고정금리
     const byLtv = s.price * ltv / 100;
     const byDti = dtiLimit(r.dti, kRate, years);
     const amount = why.length ? 0 : Math.max(0, Math.min(r.loanCap, byLtv, byDti));
@@ -426,16 +443,22 @@ function evalProducts() {
   {
     const r = R.didimdol, why = [];
     if (s.ownership !== "none") why.push("세대원 전원 무주택 요건 미충족");
-    const iCap = s.marital === "newlywed" ? r.incomeCap.newlywed : (s.firstTime ? r.incomeCap.firstTime : r.incomeCap.base);
+    // 소득 상한: 일반 6천 / 생애최초·2자녀 이상 7천 / 신혼 8.5천 — 해당되는 것 중 가장 높은 값
+    let iCap = r.incomeCap.base;
+    if (s.firstTime) iCap = Math.max(iCap, r.incomeCap.firstTime);
+    if (s.kids >= 2) iCap = Math.max(iCap, r.incomeCap.kids2plus);
+    if (s.marital === "newlywed") iCap = Math.max(iCap, r.incomeCap.newlywed);
     if (s.income > iCap) why.push(`부부합산 소득 ${fmtMan(iCap)} 초과`);
     if (s.netAsset > r.assetCap) why.push("순자산 5.11억 초과");
     const pCap = (s.marital === "newlywed" || s.kids >= 2) ? r.priceCap.newlywedOr2Kids : r.priceCap.base;
     if (s.price > pCap) why.push(`주택가격 ${fmtEok(pCap)} 초과`);
     if (s.over85) why.push("전용 85㎡ 초과");
-    const loanCap = s.marital === "newlywed" ? r.loanCap.newlywed : (s.firstTime ? r.loanCap.firstTime : r.loanCap.base);
+    // 한도: 신혼가구 또는 2자녀 이상 3.2억 / 생애최초 2.4억 / 일반 2억
+    const loanCap = (s.marital === "newlywed" || s.kids >= 2) ? r.loanCap.newlywedOr2Kids
+      : (s.firstTime ? r.loanCap.firstTime : r.loanCap.base);
     const ltv = s.firstTime ? (isCapOrReg ? r.ltv.firstTimeCapitalOrReg : r.ltv.firstTime) : r.ltv.base;
     const years = Math.min(s.years, 30);
-    const kRate = 3.0;
+    const kRate = r.refRate;
     const byLtv = s.price * ltv / 100;
     const byDti = dtiLimit(r.dti, kRate, years);
     const amount = why.length ? 0 : Math.max(0, Math.min(loanCap, byLtv, byDti));
@@ -462,10 +485,10 @@ function evalProducts() {
     const realDemand = s.ownership === "none" && s.price <= 60000 && s.income <= 7000;
     let ltv, dti;
     if (s.firstTime) { ltv = isCapOrReg ? r.ltv.firstTimeCapitalOrReg : r.ltv.firstTime; dti = r.dti.base; }
-    else if (s.region === "reg" && !realDemand) { ltv = r.ltv.aptReg; dti = r.dti.reg; }
+    else if (isReg && !realDemand) { ltv = r.ltv.aptReg; dti = r.dti.reg; }
     else { ltv = r.ltv.apt; dti = r.dti.base; }
     const loanCap = s.firstTime ? r.loanCap.firstTime : (s.kids >= 2 ? r.loanCap.multiKids : r.loanCap.base);
-    const kRate = 4.0;
+    const kRate = r.refRate;
     const byLtv = s.price * ltv / 100;
     const byDti = dtiLimit(dti, kRate, s.years);
     const amount = why.length ? 0 : Math.max(0, Math.min(loanCap, byLtv, byDti));
@@ -481,7 +504,7 @@ function evalProducts() {
     const r = R.bank, why = [];
     if (s.ownership === "multi" && isCapOrReg) why.push("다주택자는 수도권·규제지역 구입 목적 주담대 불가");
     let ltv;
-    if (s.region === "reg") ltv = s.firstTime ? r.ltv.regFirstTime : r.ltv.reg;
+    if (isReg) ltv = s.firstTime ? r.ltv.regFirstTime : r.ltv.reg;
     else ltv = r.ltv.nonReg;
     const years = isCapOrReg ? Math.min(s.years, r.maxYearsCapitalOrReg) : s.years;
     // 스트레스 DSR
@@ -493,22 +516,36 @@ function evalProducts() {
     // 수도권·규제 한도 캡
     let cap = Infinity;
     if (isCapOrReg) cap = r.capByPrice.find((c) => s.price <= c.maxPrice).cap;
-    const amount = why.length ? 0 : Math.max(0, Math.min(byLtv, byDsr, cap));
+    // 방공제 — '26.6~7월 은행권 MCI·MCG 전면 중단으로 LTV 한도에서 소액임차보증금이 차감됨
+    const roomCut = r.mciSuspended ? (r.roomDeduction[s.region] || 0) : 0;
+    const beforeCut = Math.max(0, Math.min(byLtv, byDsr, cap));
+    const amount = why.length ? 0 : Math.max(0, beforeCut - roomCut);
     const detail = [["LTV " + ltv + "%", byLtv], [`DSR ${r.dsr}% (심사금리 ${dsrRate.toFixed(1)}%)`, byDsr]];
     if (cap !== Infinity) detail.push(["지역 한도 캡", cap]);
+    if (roomCut > 0) detail.push(["방공제 차감", -roomCut, "cut"]); // "cut" = 사후 차감 항목, 결정요인 후보에서 제외
     results.push({ name: "시중은행 주담대", why, amount, detail,
+      cutApplied: roomCut, beforeCut,
       rate: s.rate, years,
       monthly: amount > 0 ? monthlyPay(amount, s.rate, years) : 0, rateNote: `입력금리 연 ${s.rate}% · ${years}년`,
-      note: isCapOrReg ? "수도권·규제지역: 6개월 내 전입 의무, 만기 30년 제한 적용." : "" });
+      note: [
+        isCapOrReg ? "수도권·규제지역: 6개월 내 전입 의무, 만기 30년 제한 적용." : "",
+        roomCut > 0 ? `'26년 6~7월 은행권이 모기지보험(MCI·MCG)을 전면 중단해 소액임차보증금 ${fmtMan(roomCut)}이 한도에서 빠집니다. 은행이 보험을 재개하면 이 차감은 없어집니다.` : "",
+        "은행별로 자체 한도 축소(예: 일부 은행 수도권 3억 제한)나 월별 취급 한도 소진이 있어 실제 창구 한도는 더 낮을 수 있습니다.",
+      ].filter(Boolean).join(" ") });
   }
 
   // 요건은 통과했지만 상환 여력(DTI·DSR)이 없어 한도가 사실상 0인 경우 사유 보강
   results.forEach((r) => {
     if (!r.why.length && r.amount < 100) {
       r.amount = 0;
-      r.why.push(s.existingAnnualPay > 0
-        ? "소득 대비 기존 대출 상환액이 많아 추가 대출 여력이 없습니다"
-        : "소득 대비 월 상환 여력이 부족합니다");
+      if (r.cutApplied > 0 && r.beforeCut >= 100) {
+        // 여력은 있었지만 방공제를 빼고 나니 남는 금액이 없는 경우
+        r.why.push(`한도에서 방공제 ${fmtMan(r.cutApplied)}을 빼고 나면 남는 금액이 없습니다`);
+      } else {
+        r.why.push(s.existingAnnualPay > 0
+          ? "소득 대비 기존 대출 상환액이 많아 추가 대출 여력이 없습니다"
+          : "소득 대비 월 상환 여력이 부족합니다");
+      }
     }
   });
 
@@ -550,7 +587,12 @@ function showResults() {
     .sort((a, b) => b.amount - a.amount)
     .map((r) => {
       const ok = r.amount > 0;
-      const bindingIdx = ok ? r.detail.reduce((mi, d, i, arr) => (d[1] < arr[mi][1] ? i : mi), 0) : -1;
+      // 결정 요인 = 한도를 실제로 묶은 항목. 방공제 같은 사후 차감("cut")은 후보에서 제외
+      let bindingIdx = -1;
+      if (ok) r.detail.forEach((d, i) => {
+        if (d[2] === "cut") return;
+        if (bindingIdx === -1 || d[1] < r.detail[bindingIdx][1]) bindingIdx = i;
+      });
       let totals = "";
       if (ok) {
         const totalPay = r.monthly * r.years * 12;
@@ -598,7 +640,8 @@ function showResults() {
     <button class="redo" onclick="location.reload()">다시 계산하기</button>
     <div class="disclaimer">
       · 본 계산기는 ${RULES.basisDate} 기준 공시된 대출 요건·연산에 따른 <b>참고용 사전 체크 도구</b>이며, 특정 금융상품의 권유·추천·중개·자문이 아닙니다.<br>
-      · 실제 대출 가능 여부와 금액·금리는 금융회사·주택금융공사·주택도시기금의 심사(신용점수, 소득 증빙 방식, 담보 평가, 방공제 등)에 따라 달라질 수 있습니다.<br>
+      · 실제 대출 가능 여부와 금액·금리는 금융회사·주택금융공사·주택도시기금의 심사(신용점수, 소득 증빙 방식, 담보 평가 등)에 따라 달라질 수 있습니다.<br>
+      · 시중은행 한도에는 '26년 6~7월 은행권 모기지보험(MCI·MCG) 전면 중단에 따른 방공제 차감을 반영했습니다. 은행이 보험을 재개하면 그만큼 한도가 늘어납니다.<br>
       · DTI·DSR 계산 시 기존 대출은 보수적으로 연 원리금 전액을 반영했습니다. 실제 심사 기준과 차이가 있을 수 있습니다.<br>
       · 규제지역 여부·정책 변경은 국토교통부·금융위원회 공고를 기준으로 하며, 이 페이지가 최신 내용을 반영하지 못할 수 있습니다.
     </div>`;
@@ -642,6 +685,13 @@ function toast(msg) {
 
 document.getElementById("basisDate").textContent = RULES.basisDate + " 규제 기준";
 renderStep();
+
+// PWA 서비스워커 등록 (오프라인 지원 · 홈 화면 앱)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
