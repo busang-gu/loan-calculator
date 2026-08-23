@@ -122,6 +122,17 @@
   .cta a{display:inline-block;margin-top:12px;background:var(--brand);color:var(--ink);font-weight:700;font-size:14px;padding:11px 26px;border-radius:10px;text-decoration:none}
   .cta .ig{display:block;margin-top:10px;font-size:12px;color:var(--ink-faint);text-decoration:none}
 
+  .soon{background:#F7F4EC;border:1px solid #E0D9C6;border-radius:14px;padding:18px;margin-top:12px}
+  .soon .t{font-size:14px;font-weight:700}
+  .soon .lead{font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.6}
+  .soon-item{border-top:1px dashed #DDD5C2;margin-top:13px;padding-top:13px}
+  .soon-item:first-of-type{border-top:none;margin-top:10px;padding-top:0}
+  .soon-item .h{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .soon-item .when{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:99px;background:#EFE7D3;color:#7A6320;white-space:nowrap}
+  .soon-item .when.live{background:var(--brand-tint);color:var(--ok)}
+  .soon-item .n{font-size:13.5px;font-weight:700}
+  .soon-item .b{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.65}
+  .soon-item .why{font-size:11.5px;color:var(--brand-dark);margin-top:6px;font-weight:600}
   .disclaimer{font-size:11px;color:var(--ink-faint);line-height:1.7;margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
   .redo{display:block;width:100%;margin-top:16px;background:transparent;border:1.5px solid var(--line);border-radius:12px;padding:13px;font-size:13.5px;color:var(--ink-soft);cursor:pointer;font-family:inherit}
   .hidden{display:none}
@@ -164,24 +175,24 @@ const LINKS = {
    전 단위: 만원
 ===================================================================== */
 const RULES = {
-  basisDate: "2026.08.09",
+  basisDate: "2026.08.23",
   didimdol: { // 내집마련 디딤돌 (주택도시기금)
-    incomeCap: { base: 6000, firstTime: 7000, kids2plus: 7000, newlywed: 8500 }, // 부부합산 연소득 (nhuf·myhome 교차확인 '26.8.9)
+    incomeCap: { base: 6000, firstTime: 7000, kids2plus: 7000, newlywed: 8500 }, // 부부합산 연소득 (nhuf·myhome 교차확인 '26.8.17)
     assetCap: 51100,                                                 // 순자산 2026년도 기준 (매년 갱신)
     priceCap: { base: 50000, newlywedOr2Kids: 60000 },               // 주택가격 (일반 5억 / 신혼·2자녀 6억)
     loanCap:  { base: 20000, firstTime: 24000, newlywedOr2Kids: 32000 }, // '25.6.27 대책 이후 계약 기준 (이전 계약: 2.5/3/4억)
     ltv: { base: 70, firstTime: 80, firstTimeCapitalOrReg: 70 },     // 수도권·규제는 생애최초라도 70
     dti: 60,
-    refRate: 3.5,                                                    // 참고금리 — 공식 금리표 연 2.85~4.15% ('26.8.9)
+    refRate: 3.5,                                                    // 참고금리 — 공식 금리표 연 2.85~4.15% ('26.8.17)
   },
   newborn: { // 신생아 특례 디딤돌
     incomeCap: 13000, incomeCapDual: 20000,                          // 맞벌이 2억(각 1.3억 이하) — '25~'27 출산 맞벌이 2.5억 완화는 '26.8 현재 공식 미반영
-    assetCap: 51100,                                                 // 2026년도 기준 (myhome.go.kr 확인, '26.8.9)
+    assetCap: 51100,                                                 // 2026년도 기준 (myhome.go.kr 확인, '26.8.17)
     priceCap: 90000,
     loanCap: 40000,                                                  // ⚠ '25.7.4 축소(5억→4억)
     ltv: { base: 70, firstTime: 80, firstTimeCapitalOrReg: 70 },
     dti: 60,
-    refRate: 2.7,                                                    // 참고금리 — 특례금리 연 1.8~4.5% ('26.8.9 확인)
+    refRate: 2.7,                                                    // 참고금리 — 특례금리 연 1.8~4.5% ('26.8.17 확인)
   },
   bogeumjari: { // 보금자리론 (한국주택금융공사)
     incomeCap: { base: 7000, newlywed: 8500, kids1: 9000, kids2: 10000, kids3: 10000 }, // HF: 1자녀 9천, 다자녀(2자녀↑) 1억 통합
@@ -206,7 +217,36 @@ const RULES = {
     // 방공제(소액임차보증금 차감) — '26.6~7월 은행권 MCI·MCG 전면 중단으로 실제 차감 중 (KB·하나·SC 등)
     // MCI·MCG가 재개되면 차감 없음. 지역별 최우선변제 소액임차보증금 기준.
     roomDeduction: { regSeoul: 5500, regGg: 4800, capital: 4800, other: 2800 },
-    mciSuspended: true,                                              // ⚠ 은행권 모기지보험 재개 시 false로 (차감 해제)
+    mciSuspended: true,                                              // ⚠ '26.8.13 대책 이후에도 일반 주담대는 제한 유지 (집단대출만 예외)
+  },
+
+  /* -------------------------------------------------------------------
+     upcoming — '26.8.13 대책으로 발표됐으나 아직 시행 전인 제도.
+     계산에는 넣지 않고 "곧 바뀝니다" 안내로만 띄운다.
+     시행일이 지나면 아래 값을 실제 RULES에 옮기고 여기서 지울 것.
+  ------------------------------------------------------------------- */
+  upcoming: {
+    firstTimeException: {
+      from: "2026-08-31",
+      title: "생애최초 인정 예외 확대",
+      body: "미성년일 때 상속으로 어쩔 수 없이 집을 갖게 된 경우처럼, 불가피한 소유 이력은 금융회사 여신심사위원회 심사를 거쳐 생애최초로 인정받을 수 있습니다.",
+    },
+    youngIncome: {
+      from: "2026-08-31",
+      title: "청년 장래소득 안내 의무화",
+      body: "은행이 청년에게 장래소득을 반영하면 한도가 얼마나 늘어나는지 의무적으로 알려주게 됩니다. (예: 만 30세·연소득 4천만원이면 한도 약 12.5% 증가)",
+    },
+    bogeumjariMarriage: {
+      from: "2026-10-01",
+      title: "보금자리론 '결혼 페널티' 해소",
+      body: "지금은 부부합산 8,500만원을 넘으면 탈락하지만, 10월부터는 <b>부부 중 한 사람의 연소득이 7,000만원 이하</b>면 합산 소득과 관계없이 이용할 수 있게 됩니다.",
+      singleIncomeCap: 7000,
+    },
+    youthBogeumjari: {
+      from: "2027-01-01",
+      title: "청년미래보금자리론 출시",
+      body: "만 39세 이하 생애최초라면 <b>4억원 이하 비아파트(전용 85㎡ 이하)</b>를 살 때 LTV를 최대 80%까지 받을 수 있습니다. 소득요건 7,000만원(신혼은 1인 기준), 연 3조원 규모로 2년 한시 공급 예정이에요.",
+    },
   },
 };
 
@@ -530,7 +570,7 @@ function evalProducts() {
       note: [
         isCapOrReg ? "수도권·규제지역: 6개월 내 전입 의무, 만기 30년 제한 적용." : "",
         roomCut > 0 ? `'26년 6~7월 은행권이 모기지보험(MCI·MCG)을 전면 중단해 소액임차보증금 ${fmtMan(roomCut)}이 한도에서 빠집니다. 은행이 보험을 재개하면 이 차감은 없어집니다.` : "",
-        "은행별로 자체 한도 축소(예: 일부 은행 수도권 3억 제한)나 월별 취급 한도 소진이 있어 실제 창구 한도는 더 낮을 수 있습니다.",
+        "'26.8.13 대책으로 가계대출 총량이 늘었지만(1.5%→3%), 추가 여력은 이주비·중도금 같은 집단대출에 우선 배분되고 <b>개인 주담대 한도는 그대로</b>입니다. 은행별 자체 축소나 월별 한도 소진으로 실제 창구 한도는 더 낮을 수 있어요.",
       ].filter(Boolean).join(" ") });
   }
 
@@ -631,6 +671,7 @@ function showResults() {
       <button onclick="location.reload()">↻ 다시 계산</button>
     </div>
     <div class="oneliner"><div class="t">한 줄 정리</div><p>${onePick}</p></div>
+    ${renderUpcoming()}
     <div class="cta">
       <div class="t">이 다음이 진짜 시작입니다</div>
       <p>대출은 도구고, 결국 중요한 건 어떤 집을 고르느냐입니다.<br>역세권·대단지·학군지 기준으로 단지 보는 법, 무료 톡방에서 매일 나눕니다.</p>
@@ -643,9 +684,49 @@ function showResults() {
       · 실제 대출 가능 여부와 금액·금리는 금융회사·주택금융공사·주택도시기금의 심사(신용점수, 소득 증빙 방식, 담보 평가 등)에 따라 달라질 수 있습니다.<br>
       · 시중은행 한도에는 '26년 6~7월 은행권 모기지보험(MCI·MCG) 전면 중단에 따른 방공제 차감을 반영했습니다. 은행이 보험을 재개하면 그만큼 한도가 늘어납니다.<br>
       · DTI·DSR 계산 시 기존 대출은 보수적으로 연 원리금 전액을 반영했습니다. 실제 심사 기준과 차이가 있을 수 있습니다.<br>
+      · '26.8.13 대책의 청년·신혼 지원책은 시행일이 아직 오지 않아 <b>계산에 반영하지 않았습니다</b> (본문 '곧 바뀝니다' 참고).<br>
       · 규제지역 여부·정책 변경은 국토교통부·금융위원회 공고를 기준으로 하며, 이 페이지가 최신 내용을 반영하지 못할 수 있습니다.
     </div>`;
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// '26.8.13 대책 — 아직 시행 전이라 계산에는 넣지 않고, 해당되는 사람에게만 안내한다
+function buildUpcoming() {
+  const u = RULES.upcoming, s = state, items = [];
+  const today = new Date();
+  const push = (o, why) => items.push({
+    o, why,
+    started: today >= new Date(o.from + "T00:00:00"),
+  });
+
+  if (s.firstTime === false) push(u.firstTimeException, "매수 이력이 있다고 답하셨어요");
+  if (s.marital === "newlywed"
+      && s.income > RULES.bogeumjari.incomeCap.newlywed
+      && s.income <= u.bogeumjariMarriage.singleIncomeCap * 2) {
+    push(u.bogeumjariMarriage, "부부합산 소득 때문에 보금자리론이 막혔는데, 여기 해당될 수 있어요");
+  }
+  if (s.isApt === false) push(u.youthBogeumjari, "아파트가 아닌 주택을 보고 계세요");
+  if (items.length < 2) push(u.youngIncome, "");
+  return items;
+}
+
+function renderUpcoming() {
+  const items = buildUpcoming();
+  if (!items.length) return "";
+  const fmtDay = (iso) => { const [y, m, d] = iso.split("-"); return `${Number(m)}월 ${Number(d)}일`; };
+  return `<div class="soon">
+    <div class="t">📅 곧 바뀝니다 — 8·13 대책</div>
+    <div class="lead">'26.8.13 대책에서 LTV·DSR·주담대 한도는 <b>그대로 유지</b>됐어요. 다만 아래 항목은 나중에 시행돼서 <b>위 계산에는 넣지 않았습니다.</b> 조건에 해당되면 그때 다시 계산해 보세요.</div>
+    ${items.map(({ o, why, started }) => `
+      <div class="soon-item">
+        <div class="h">
+          <span class="when ${started ? "live" : ""}">${started ? "시행 중" : fmtDay(o.from) + "부터"}</span>
+          <span class="n">${o.title}</span>
+        </div>
+        <div class="b">${o.body}</div>
+        ${why ? `<div class="why">↳ ${why}</div>` : ""}
+      </div>`).join("")}
+  </div>`;
 }
 
 function buildSummaryText(results, best, gap, eligible) {
