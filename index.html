@@ -175,7 +175,7 @@ const LINKS = {
    전 단위: 만원
 ===================================================================== */
 const RULES = {
-  basisDate: "2026.09.08",
+  basisDate: "2026.09.26",
   didimdol: { // 내집마련 디딤돌 (주택도시기금)
     incomeCap: { base: 6000, firstTime: 7000, kids2plus: 7000, newlywed: 8500 }, // 부부합산 연소득 (nhuf·myhome 교차확인 '26.8.17)
     assetCap: 51100,                                                 // 순자산 2026년도 기준 (매년 갱신)
@@ -236,11 +236,11 @@ const RULES = {
       title: "청년 장래소득 안내 의무화",
       body: "은행은 청년에게 장래소득을 반영하면 한도가 얼마나 늘어나는지 의무적으로 알려줘야 해요. (예: 만 30세·연소득 4천만원이면 한도 약 12.5% 증가) 창구에서 <b>'장래소득 적용되나요?'</b> 한마디면 됩니다.",
     },
-    bogeumjariMarriage: {
-      from: "2026-10-01",
-      title: "보금자리론 '결혼 페널티' 해소",
-      body: "지금은 부부합산 8,500만원을 넘으면 탈락하지만, 10월부터는 <b>부부 중 한 사람의 연소득이 7,000만원 이하</b>면 합산 소득과 관계없이 이용할 수 있게 됩니다.",
-      singleIncomeCap: 7000,
+    marriagePenalty: {
+      from: "2026-10-01",              // ⚠ 금융위·국토부 "10월 시행". 일자가 늦춰지면 이 값만 고치면 계산도 같이 밀림
+      title: "신혼부부 '결혼 페널티' 완화 — 디딤돌·보금자리론",
+      body: "부부합산 8,500만원을 넘어도 <b>부부 중 한 분이 일반 기준(디딤돌 6,000만·보금자리론 7,000만) 이하</b>면 이용할 수 있어요. 시행일부터는 이 계산기도 그 기준으로 판정합니다. 실제 접수는 공사·은행에서 최종 확인하세요.",
+      singleIncomeCap: { didimdol: 6000, bogeumjari: 7000 },
     },
     youthBogeumjari: {
       from: "2027-01-01",
@@ -265,6 +265,7 @@ const state = {
   over85: null,         // 전용 85㎡ 초과 여부
   price: null,          // 만원
   income: null,         // 부부합산 연소득, 만원
+  spouseLow: null,      // 신혼일 때만: 부부 중 소득이 적은 쪽 연소득, 만원 ('26.10~ 결혼 페널티 완화 판정용)
   netAsset: null,       // 순자산, 만원
   existingAnnualPay: 0, // 기존대출 연 원리금, 만원
   years: 30,
@@ -337,6 +338,7 @@ const steps = [
     render(el) {
       el.innerHTML = `
         ${numField("부부합산 연소득 (세전)", "income", "만원", "예: 9,000만원 → 9000")}
+        ${state.marital === "newlywed" ? numField("부부 중 소득이 적은 분의 연소득", "spouseLow", "만원", "'26.10월부터 신혼부부는 한 분이 일반 기준(디딤돌 6천·보금자리 7천) 이하면 합산과 관계없이 가능해요") : ""}
         ${numField("부부합산 순자산 (자산 - 부채)", "netAsset", "만원", "기금대출 자산 심사용. 예: 4억 → 40000")}
         ${numField("기존 대출 연간 상환액 (원리금)", "existingAnnualPay", "만원", "신용대출·전세대출·차 할부 등 1년치 합계. 없으면 0")}
         ${q("대출 기간은?", "years", [[20, "20년", ""], [30, "30년", ""], [40, "40년", "수도권·규제지역 시중대출은 30년 제한"]], null, true)}
@@ -347,7 +349,8 @@ const steps = [
         ${numField("예상 금리 (연 %)", "rate", "%", "모르면 4.0 그대로 두세요", true)}
       `;
     },
-    valid: () => state.income > 0 && state.netAsset !== null && state.years && state.rateType,
+    valid: () => state.income > 0 && state.netAsset !== null && state.years && state.rateType
+      && (state.marital !== "newlywed" || (state.spouseLow !== null && state.spouseLow <= state.income)),
   },
 ];
 
@@ -444,6 +447,16 @@ function maxPrincipal(M, r, n) {
   return M * (1 - Math.pow(1 + m, -k)) / m;
 }
 
+// '26.10월 결혼 페널티 완화가 시행됐는지 (시행일 전엔 현행 기준으로만 판정)
+function marriageFixLive() {
+  return new Date() >= new Date(RULES.upcoming.marriagePenalty.from + "T00:00:00");
+}
+// 신혼 + 시행 후 + 한 분이 기준 이하 → 합산 초과여도 통과
+function passesByOneSpouse(cap) {
+  const s = state;
+  return s.marital === "newlywed" && marriageFixLive() && s.spouseLow != null && s.spouseLow <= cap;
+}
+
 function evalProducts() {
   const s = state, R = RULES;
   const isReg = s.region === "regSeoul" || s.region === "regGg";
@@ -488,7 +501,11 @@ function evalProducts() {
     if (s.firstTime) iCap = Math.max(iCap, r.incomeCap.firstTime);
     if (s.kids >= 2) iCap = Math.max(iCap, r.incomeCap.kids2plus);
     if (s.marital === "newlywed") iCap = Math.max(iCap, r.incomeCap.newlywed);
-    if (s.income > iCap) why.push(`부부합산 소득 ${fmtMan(iCap)} 초과`);
+    let viaSpouse = false;
+    if (s.income > iCap) {
+      if (passesByOneSpouse(RULES.upcoming.marriagePenalty.singleIncomeCap.didimdol)) viaSpouse = true;
+      else why.push(`부부합산 소득 ${fmtMan(iCap)} 초과`);
+    }
     if (s.netAsset > r.assetCap) why.push("순자산 5.11억 초과");
     const pCap = (s.marital === "newlywed" || s.kids >= 2) ? r.priceCap.newlywedOr2Kids : r.priceCap.base;
     if (s.price > pCap) why.push(`주택가격 ${fmtEok(pCap)} 초과`);
@@ -506,7 +523,8 @@ function evalProducts() {
       detail: [["상품 한도", loanCap], ["LTV " + ltv + "%", byLtv], ["DTI " + r.dti + "%", byDti]],
       rate: kRate, years,
       monthly: amount > 0 ? monthlyPay(amount, kRate, years) : 0, rateNote: `참고금리 연 ${kRate}% · ${years}년`,
-      note: "금리는 소득·만기 구간별 고정금리. 대출한도는 '25.6.27 이후 계약 기준(이전 계약은 상향)입니다." });
+      note: (viaSpouse ? "<b>신혼부부 1인 소득 기준('26.10~)</b>으로 통과했어요 — 부부 중 한 분이 6,000만원 이하. 기금 수탁은행에서 최종 확인하세요. " : "")
+        + "금리는 소득·만기 구간별 고정금리. 대출한도는 '25.6.27 이후 계약 기준(이전 계약은 상향)입니다." });
   }
 
   /* ---- 3. 보금자리론 ---- */
@@ -518,7 +536,11 @@ function evalProducts() {
     if (s.kids === 1) iCap = Math.max(iCap, r.incomeCap.kids1);
     if (s.kids === 2) iCap = Math.max(iCap, r.incomeCap.kids2);
     if (s.kids >= 3) iCap = Math.max(iCap, r.incomeCap.kids3);
-    if (s.income > iCap) why.push(`부부합산 소득 ${fmtMan(iCap)} 초과`);
+    let viaSpouse = false;
+    if (s.income > iCap) {
+      if (passesByOneSpouse(RULES.upcoming.marriagePenalty.singleIncomeCap.bogeumjari)) viaSpouse = true;
+      else why.push(`부부합산 소득 ${fmtMan(iCap)} 초과`);
+    }
     if (s.price > r.priceCap) why.push("주택가격 6억 초과");
     if (!s.isApt) why.push("아파트 외 주택은 LTV가 달라 이 계산기 범위 밖 (HF 조회 권장)");
     // 실수요 예외: 무주택 + 6억 이하 + 소득 7천 이하 → 규제지역 차감 미적용
@@ -536,7 +558,8 @@ function evalProducts() {
       detail: [["상품 한도", loanCap], ["LTV " + ltv + "%", byLtv], ["DTI " + dti + "%", byDti]],
       rate: kRate, years: s.years,
       monthly: amount > 0 ? monthlyPay(amount, kRate, s.years) : 0, rateNote: `참고금리 연 ${kRate}% 고정 · ${s.years}년`,
-      note: "고정금리. 우대금리(신혼·다자녀 등)로 실제 금리는 더 낮아질 수 있습니다." });
+      note: (viaSpouse ? "<b>신혼부부 1인 소득 기준('26.10~)</b>으로 통과했어요 — 부부 중 한 분이 7,000만원 이하. 주택금융공사에서 최종 확인하세요. " : "")
+        + "고정금리. 우대금리(신혼·다자녀 등)로 실제 금리는 더 낮아질 수 있습니다." });
   }
 
   /* ---- 4. 시중은행 주담대 ---- */
@@ -569,7 +592,7 @@ function evalProducts() {
       monthly: amount > 0 ? monthlyPay(amount, s.rate, years) : 0, rateNote: `입력금리 연 ${s.rate}% · ${years}년`,
       note: [
         isCapOrReg ? "수도권·규제지역: 6개월 내 전입 의무, 만기 30년 제한 적용." : "",
-        roomCut > 0 ? `'26년 6~7월 은행권이 모기지보험(MCI·MCG)을 중단해 소액임차보증금 ${fmtMan(roomCut)}이 한도에서 빠집니다. 9월 들어 농협 등 일부 은행은 다시 받기 시작했으니, <b>은행별로 확인하면 이 금액을 되찾을 수도</b> 있어요.` : "",
+        roomCut > 0 ? `'26년 6~7월 은행권이 모기지보험(MCI·MCG)을 중단해 소액임차보증금 ${fmtMan(roomCut)}이 한도에서 빠집니다. 9월 들어 농협·iM뱅크 등 일부 은행은 다시 받기 시작했으니, <b>은행별로 확인하면 이 금액을 되찾을 수도</b> 있어요.` : "",
         "'26.8.13 대책으로 가계대출 총량이 늘었지만(1.5%→3%), 추가 여력은 이주비·중도금 같은 집단대출에 우선 배분되고 <b>개인 주담대 한도는 그대로</b>입니다. 은행별 자체 축소나 월별 한도 소진으로 실제 창구 한도는 더 낮을 수 있어요.",
       ].filter(Boolean).join(" ") });
   }
@@ -684,7 +707,7 @@ function showResults() {
       · 실제 대출 가능 여부와 금액·금리는 금융회사·주택금융공사·주택도시기금의 심사(신용점수, 소득 증빙 방식, 담보 평가 등)에 따라 달라질 수 있습니다.<br>
       · 시중은행 한도에는 '26년 6~7월 은행권 모기지보험(MCI·MCG) 전면 중단에 따른 방공제 차감을 반영했습니다. 은행이 보험을 재개하면 그만큼 한도가 늘어납니다.<br>
       · DTI·DSR 계산 시 기존 대출은 보수적으로 연 원리금 전액을 반영했습니다. 실제 심사 기준과 차이가 있을 수 있습니다.<br>
-      · '26.8.13 대책의 청년·신혼 지원책은 시행일이 아직 오지 않아 <b>계산에 반영하지 않았습니다</b> (본문 '곧 바뀝니다' 참고).<br>
+      · '26.8.13 대책 후속 제도 중 <b>신혼부부 1인 소득 기준은 시행일(10월)부터 자동 반영</b>되며, 생애최초 예외·장래소득처럼 은행 심사에 달린 항목은 계산에 넣지 않았습니다.<br>
       · 규제지역 여부·정책 변경은 국토교통부·금융위원회 공고를 기준으로 하며, 이 페이지가 최신 내용을 반영하지 못할 수 있습니다.
     </div>`;
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -700,10 +723,12 @@ function buildUpcoming() {
   });
 
   if (s.firstTime === false) push(u.firstTimeException, "매수 이력이 있다고 답하셨어요");
-  if (s.marital === "newlywed"
-      && s.income > RULES.bogeumjari.incomeCap.newlywed
-      && s.income <= u.bogeumjariMarriage.singleIncomeCap * 2) {
-    push(u.bogeumjariMarriage, "부부합산 소득 때문에 보금자리론이 막혔는데, 여기 해당될 수 있어요");
+  if (s.marital === "newlywed" && s.income > RULES.bogeumjari.incomeCap.newlywed) {
+    const cap = u.marriagePenalty.singleIncomeCap;
+    const hit = s.spouseLow != null && s.spouseLow <= cap.bogeumjari;
+    push(u.marriagePenalty, hit
+      ? (marriageFixLive() ? "위 계산에 이미 반영됐어요" : "입력하신 소득이면 시행일부터 보금자리론" + (s.spouseLow <= cap.didimdol ? "·디딤돌" : "") + "이 열립니다")
+      : "부부합산 소득 때문에 막혔지만, 한 분 소득이 기준 이하면 달라져요");
   }
   if (s.isApt === false) push(u.youthBogeumjari, "아파트가 아닌 주택을 보고 계세요");
   if (items.length < 2) push(u.youngIncome, "");
